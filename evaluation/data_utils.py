@@ -3,6 +3,15 @@ from seacrowd.utils.constants import Tasks
 import pandas as pd
 import datasets
 from enum import Enum
+import datasets
+
+def patch_resolve_trust_remote_code():
+    def resolve_trust_remote_code(trust_remote_code: bool | None, repo_id: str):
+        return True
+    datasets.load.resolve_trust_remote_code = resolve_trust_remote_code
+
+patch_resolve_trust_remote_code()
+
 
 NLU_TASK_LIST = {
     # Sentiment Analysis

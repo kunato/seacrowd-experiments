@@ -9,10 +9,9 @@ from data_utils import load_nlg_datasets
 
 import torch
 
-from transformers import AutoTokenizer, AutoModelForSeq2SeqLM, AutoModelForCausalLM, BloomTokenizerFast, set_seed
+from transformers import AutoTokenizer, AutoModelForCausalLM, set_seed
 from nusacrowd.utils.constants import Tasks
-
-from sacremoses import MosesTokenizer
+from pythainlp import word_tokenize
 import datasets, evaluate
 from anyascii import anyascii
 from retry import retry
@@ -21,13 +20,12 @@ from retry import retry
 DEBUG=True
 
 """ Generation metrics """
-bleu = datasets.load_metric('bleu')
-rouge = datasets.load_metric('rouge')
-sacrebleu = datasets.load_metric('sacrebleu')
-chrf = datasets.load_metric('chrf')
+bleu = datasets.load_metric('bleu', trust_remote_code=True)
+rouge = datasets.load_metric('rouge', trust_remote_code=True)
+sacrebleu = datasets.load_metric('sacrebleu', trust_remote_code=True)
+chrf = datasets.load_metric('chrf', trust_remote_code=True)
 meteor = evaluate.load('meteor')
-squad_v2_metric = datasets.load_metric('squad_v2')
-mt = MosesTokenizer(lang='id')
+squad_v2_metric = datasets.load_metric('squad_v2', trust_remote_code=True)
 
 def generation_metrics_fn(list_hyp, list_label):
     # hyp and label are both list of string
@@ -39,8 +37,8 @@ def generation_metrics_fn(list_hyp, list_label):
     list_label = [label if label is not None else "" for label in list_label]
     
     # Tokenize the hypotheses and labels for BLEU computation
-    list_hyp_bleu = list(map(lambda x: mt.tokenize(x), list_hyp))
-    list_label_bleu = list(map(lambda x: [mt.tokenize(x)], list_label))    
+    list_hyp_bleu = list(map(lambda x: word_tokenize(x), list_hyp))
+    list_label_bleu = list(map(lambda x: [word_tokenize(x)], list_label))    
     list_label_sacrebleu = list(map(lambda x: [x], list_label))
 
     metrics = {}
@@ -85,7 +83,7 @@ def generation_metrics_fn(list_hyp, list_label):
     return metrics
 
 
-def to_prompt(input, prompt, prompt_lang, task_name, task_type, with_label=False, use_template=False):
+def to_prompt(input, prompt, prompt_lang, task_name, task_type, tokenizer, with_label=False,  use_template=False):
     if '[INPUT]' in prompt:
         prompt = prompt.replace('[INPUT]', input['text_1'])
 
@@ -102,8 +100,6 @@ def to_prompt(input, prompt, prompt_lang, task_name, task_type, with_label=False
             src_lang = task_names[-4]
             tgt_lang = task_names[-3]
 
-        # print(src_lang, tgt_lang)
-
         # Replace src and tgt lang name
         prompt = prompt.replace('[SOURCE]', get_lang_name(prompt_lang, src_lang))
         prompt = prompt.replace('[TARGET]', get_lang_name(prompt_lang, tgt_lang))
@@ -119,15 +115,13 @@ def to_prompt(input, prompt, prompt_lang, task_name, task_type, with_label=False
             prompt += " " + input['text_2']
 
     if use_template:
-        prompt_template = "### USER:\n{human_prompt}\n\n### RESPONSE:\n"
+        prompt = tokenizer.apply_chat_template([{'role': "user", "content": prompt}], tokenize=False, add_generation_prompt=True)
         prompt = prompt_template.format(human_prompt=prompt)
     
     return prompt
 
 
 def predict_generation(prompts, model_name, tokenizer, model):
-    #model = model.to('cuda')
-
     if "Qwen" in model_name:
         preds = []
         for prompt in prompts:
@@ -196,27 +190,8 @@ if __name__ == '__main__':
     if "Qwen" in MODEL:
         tokenizer.add_special_tokens({'pad_token': '<|endoftext|>'})
 
-    # Model initialization
-    fp16_args = {'device_map': "auto", 'torch_dtype': torch.float16}  # needed for larger model
-    if "aya-101" in MODEL:
-        model = AutoModelForSeq2SeqLM.from_pretrained(MODEL, device_map="auto", trust_remote_code=True, resume_download=True)
-    elif "mt0" in MODEL or "mt5" in MODEL:
-        extra_args = fp16_args if "xxl" in MODEL else {}
-        model = AutoModelForSeq2SeqLM.from_pretrained(MODEL, resume_download=True, trust_remote_code=True, **extra_args)
-        if "xxl" not in MODEL:
-            model = model.to('cuda')
-    else:
-        extra_args = fp16_args if "7b" in MODEL.lower() or "13b" in MODEL.lower() or "8b" in MODEL.lower() else {}
-        model = AutoModelForCausalLM.from_pretrained(MODEL, resume_download=True, trust_remote_code=True, **extra_args)
-        if "SeaLLM" in MODEL or "Qwen" in MODEL or 'falcon' in MODEL:
-            #if "SeaLLM" in MODEL or "llama" in MODEL:
-            # quick fix for tensor error
-            # https://github.com/facebookresearch/llama/issues/380
-            model = model.bfloat16()
-    
-    if model is not None:
-        #model.cuda()
-        model.eval()
+    model = AutoModelForCausalLM.from_pretrained(MODEL, device_map="auto", trust_remote_code=True, torch_dtype=torch.bfloat16, attn_implementation="flash_attention_2")
+    model.eval()
 
     metrics = {'dataset': []}
     for i, dset_subset in enumerate(nlg_datasets.keys()):
@@ -251,7 +226,7 @@ if __name__ == '__main__':
             preds_latin = []
             golds = []  
             print(f"PROMPT ID: {prompt_id}")
-            print(f"SAMPLE PROMPT: {to_prompt(data[0], prompt_template, prompt_lang, dset_subset, task_type.value, use_template=use_prompt_template)}")
+            print(f"SAMPLE PROMPT: {to_prompt(data[0], prompt_template, prompt_lang, dset_subset, task_type.value, tokenizer, use_template=use_prompt_template)}")
 
             few_shot_text_list = []
             if N_SHOT > 0:
@@ -260,7 +235,7 @@ if __name__ == '__main__':
                     if task_type != Tasks.QUESTION_ANSWERING and len(sample['text_1']) < 20:
                         continue
                     few_shot_text_list.append(
-                        to_prompt(sample, prompt_template, dset_subset, task_type.value, with_label=True, use_template=use_prompt_template)
+                        to_prompt(sample, prompt_template, dset_subset, task_type.value, tokenizer, with_label=True, use_template=use_prompt_template)
                     )
                     if len(few_shot_text_list) == N_SHOT:
                         break
@@ -288,7 +263,7 @@ if __name__ == '__main__':
                             continue
                         
                         # Buffer
-                        prompt_text = to_prompt(sample, prompt_template, prompt_lang, dset_subset, task_type.value, use_template=use_prompt_template)
+                        prompt_text = to_prompt(sample, prompt_template, prompt_lang, dset_subset, task_type.value, tokenizer, use_template=use_prompt_template)
                         prompt_text = '\n\n'.join(few_shot_text_list + [prompt_text])
                         prompts.append(prompt_text)
 
