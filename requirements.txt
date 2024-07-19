@@ -18,3 +18,10 @@ transformers
 pillow
 jiwer
 evaluate
+python-dotenv
+nusacrowd
+gdown
+audiosegment
+textgrid
+pyreadr
+rouge_score

@@ -1,3 +1,6 @@
+ipy.py
+results/
+results.zip
 # Created by https://www.toptal.com/developers/gitignore/api/python,jupyternotebooks,windows,macos,linux
 # Edit at https://www.toptal.com/developers/gitignore?templates=python,jupyternotebooks,windows,macos,linux
 
@@ -241,3 +244,4 @@ data
 evaluation/batch_files_nlg
 
 # End of https://www.toptal.com/developers/gitignore/api/python,jupyternotebooks,windows,macos,linux
+LEADERBOARD_README.md

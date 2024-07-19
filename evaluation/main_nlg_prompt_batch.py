@@ -197,9 +197,9 @@ if __name__ == '__main__':
         tokenizer.add_special_tokens({'pad_token': '<|endoftext|>'})
 
     # Model initialization
-    fp16_args = {'device_map': "auto", 'torch_dtype': torch.float16, 'load_in_8bit': True}  # needed for larger model
+    fp16_args = {'device_map': "auto", 'torch_dtype': torch.float16}  # needed for larger model
     if "aya-101" in MODEL:
-        model = AutoModelForSeq2SeqLM.from_pretrained(MODEL, device_map="auto", load_in_8bit=True, trust_remote_code=True, resume_download=True)
+        model = AutoModelForSeq2SeqLM.from_pretrained(MODEL, device_map="auto", trust_remote_code=True, resume_download=True)
     elif "mt0" in MODEL or "mt5" in MODEL:
         extra_args = fp16_args if "xxl" in MODEL else {}
         model = AutoModelForSeq2SeqLM.from_pretrained(MODEL, resume_download=True, trust_remote_code=True, **extra_args)
