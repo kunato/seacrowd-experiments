@@ -19,7 +19,7 @@ def upload_file(result_path: str, task_type: str, model_name: str):
 
 def process_nlu_result(model_name: str, outpath: str):
     task_type = 'NLU'
-    df = pd.read_csv(f'evaluation/metrics_nlu/nlu_results_eng_{model_name}.csv')
+    df = pd.read_csv(f'metrics_nlu/nlu_results_eng_{model_name}.csv')
     results = defaultdict(list)
     dataset_key = 'dataset'
     metrics_key = ['accuracy']
@@ -46,7 +46,7 @@ def process_nlu_result(model_name: str, outpath: str):
 
 def process_nlg_result(model_name: str, outpath: str):
     task_type = 'NLG'
-    df = pd.read_csv(f'evaluation/metrics_nlg/nlg_results_eng_0_{model_name}.csv')
+    df = pd.read_csv(f'metrics_nlg/nlg_results_eng_0_{model_name}.csv')
     results = defaultdict(dict)
     dataset_key = 'dataset'
     dataset_to_metrics = {
@@ -76,8 +76,30 @@ def process_nlg_result(model_name: str, outpath: str):
     
     upload_file(result_path, task_type, model_name)
 
+def process_llm_result(model_name: str, outpath: str):
+    task_type = 'LLM'
+    results = defaultdict(dict)
+    with open(f'metrics_llm/{model_name}.json') as f:
+        d = json.load(f)
+        for m in d.keys():
+            for name in d[m].keys():
+                results[f'{name}'][m] = d[m][name]
+    data = {
+        'config': {
+            "model_name": model_name,
+        },
+        "results": results
+    }
+    result_path = f'{outpath}/{task_type}/{model_name}/results.json'
+    os.makedirs(os.path.dirname(result_path), exist_ok=True)
+    with open(result_path, 'w') as w:
+        json.dump(data, w, ensure_ascii=False)
+        
+    upload_file(result_path, task_type, model_name)
+    
 
 
 if __name__ == '__main__':
     process_nlu_result('Meta-Llama-3-8B-Instruct', 'results')
     process_nlg_result('Meta-Llama-3-8B-Instruct', 'results')
+    process_llm_result('Meta-Llama-3-8B-Instruct', 'results')

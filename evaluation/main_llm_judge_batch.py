@@ -8,12 +8,12 @@ import os
 import dataclasses
 from dataclasses import dataclass, field
 import torch
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 from openai import OpenAI, OpenAIError
 from tqdm.contrib.concurrent import thread_map
 from tqdm import tqdm
 from model_utils import load_model_and_tokenizer
-
+from collections import defaultdict
 
 two_score_pattern = re.compile("\[\[(\d+\.?\d*),\s?(\d+\.?\d*)\]\]")
 two_score_pattern_backup = re.compile("\[(\d+\.?\d*),\s?(\d+\.?\d*)\]")
@@ -108,12 +108,16 @@ class LLMJudgeEvalHandler:
     @torch.inference_mode()
     def generate(self, payload: List[LLMJudgePayload], bs=4) -> List[LLMJudgePayload]:
         prompts = []
-        for row in payload:
+        done = []
+        for i, row in enumerate(payload):
+            if row.is_done:
+                done.append(i)
+                continue
             conv = self._get_conversations(row.turns, row.responses)
             prompts.append(self.tokenizer.apply_chat_template([dataclasses.asdict(p) for p in conv], add_generation_prompt=True, tokenize=False))
 
         results = []
-        assert len(prompts) == len(payload)
+        assert (len(prompts) + len(done)) == len(payload)
         for i in tqdm(range(0, len(prompts), bs)):
             batchs = []
             for j in range(bs):
@@ -126,11 +130,17 @@ class LLMJudgeEvalHandler:
             preds = self.tokenizer.batch_decode(outputs[:, inputs["input_ids"].shape[1]:], skip_special_tokens=True)
             results.extend(preds)
 
-        assert len(results) == len(payload)
-        for i, res in enumerate(results):
-            payload[i].responses.append(res)
+        assert (len(results) + len(done)) == len(payload)
+        cnt = 0
+        for i, res in enumerate(payload):
+            if res.is_done:
+                continue
+            
+            payload[i].responses.append(results[cnt])
+            cnt += 1
             if len(payload[i].responses) == len(payload[i].turns):
                 payload[i].is_done = True
+            
         return payload
 
     def _run_judge_single(
@@ -217,7 +227,7 @@ class LLMJudgeEvalHandler:
 
     def calculate_result(
         self, payload: List[LLMJudgePayload]
-    ) -> Dict[str, Any]:
+    ) -> Tuple[Dict[str, Any],Dict[str, Any]]:
         judge_inputs = []
         for p in payload:
             for i in range(len(p.turns)):
@@ -226,19 +236,19 @@ class LLMJudgeEvalHandler:
         def _judge_fn(item):
             p, i = item
             r = self._run_judge_single(p, i)
-            return {'result': r, 'question_id': p.question_id, 'turn': i, "payload": dataclasses.asdict(p)}
+            return {'result': r, 'question_id': p.question_id, 'turn': i, "category": p.category, "payload": dataclasses.asdict(p)}
 
         judge_results = thread_map(
             _judge_fn, judge_inputs, max_workers=self.judge_num_workers
         )
 
         extra_returns = {}
-        ratings = []
+        ratings = defaultdict(list)
         for res in judge_results:
             rating = res["result"]["rating"]
-            ratings.append(rating)
-        extra_returns = {"avg_rating": sum(ratings) / len(ratings)}
-        return {**extra_returns, 'judge_results': judge_results}
+            ratings[res["category"]].append(rating)
+        extra_returns = {"avg_rating": {k: sum(ratings[k]) / len(ratings[k]) for k in ratings.keys()}}
+        return extra_returns, judge_results
     
     def pipeline(self) -> Any:
         payload = self.load_dataset()
@@ -248,7 +258,26 @@ class LLMJudgeEvalHandler:
         
 
 if __name__ == '__main__':
-    handler = LLMJudgeEvalHandler('meta-llama/Meta-Llama-3-8B-Instruct', '/workspace3/seacrowd-experiments/temp/mt_bench_thai_mock.json')
-    results = handler.pipeline()
-    print('avg_rating: ', results['avg_rating'])
+    import argparse
+    parser = argparse.ArgumentParser(prog='LLM as judge evalulator')
+    parser.add_argument('model_name')
+    parser.add_argument('--data')
+    parser.add_argument('--output-path', default='outputs_llm')
+    parser.add_argument('--metric-path', default='metrics_llm')
+    args = parser.parse_args()
+
+    model_name = args.model_name
+    handler = LLMJudgeEvalHandler(model_name, args.data)
+    metric_results, judge_results  = handler.pipeline()
+    
+    print('avg_rating: ', metric_results['avg_rating'])
+    os.makedirs(f'{args.metric_path}', exist_ok=True)
+    os.makedirs(f'{args.output_path}', exist_ok=True)
+    model_name_escape = model_name.split("/")[-1]
+    with open(f'{args.metric_path}/{model_name_escape}.json', 'w') as w:
+        json.dump(metric_results, w, ensure_ascii=False)
+    with open(f'{args.output_path}/{model_name_escape}.json', 'w') as w:
+        json.dump(judge_results, w, ensure_ascii=False)
+
+
     
