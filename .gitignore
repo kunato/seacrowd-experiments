@@ -1,3 +1,5 @@
+outputs*/
+temp/
 ipy.py
 results/
 results.zip
@@ -245,3 +247,4 @@ evaluation/batch_files_nlg
 
 # End of https://www.toptal.com/developers/gitignore/api/python,jupyternotebooks,windows,macos,linux
 LEADERBOARD_README.md
+judge_result.json

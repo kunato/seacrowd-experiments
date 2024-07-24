@@ -19,9 +19,9 @@ from sklearn.metrics import classification_report, precision_recall_fscore_suppo
 import torch
 import torch.nn.functional as F
 
-from peft import PeftModel
-from transformers import AutoTokenizer, AutoModelForSeq2SeqLM, AutoModelForCausalLM, set_seed
+from transformers import set_seed
 
+from model_utils import load_model_and_tokenizer
 from prompt_utils import get_prompt, get_label_mapping
 from data_utils import load_nlu_datasets
 
@@ -140,15 +140,10 @@ if __name__ == '__main__':
     set_seed(42)
 
     # Load Model
-    tokenizer = AutoTokenizer.from_pretrained(MODEL, truncation_side='left', padding_side='right', trust_remote_code=True)
-    model = AutoModelForCausalLM.from_pretrained(MODEL, device_map="auto", trust_remote_code=True, torch_dtype=torch.bfloat16, attn_implementation="flash_attention_2")
     
-    if tokenizer.pad_token is None:
-        tokenizer.pad_token = tokenizer.eos_token # Use EOS to pad label
+    model, tokenizer = load_model_and_tokenizer(MODEL, compile=False)
 
-    model.eval()
     with torch.no_grad():
-
         metrics = []
         labels = []
         for i, dset_subset in enumerate(nlu_datasets.keys()):

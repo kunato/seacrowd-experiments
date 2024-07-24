@@ -4,17 +4,17 @@ from os.path import exists
 
 import pandas as pd
 from tqdm import tqdm
+from model_utils import load_model_and_tokenizer
 from prompt_utils import get_prompt, get_lang_name
 from data_utils import load_nlg_datasets
 
 import torch
 
-from transformers import AutoTokenizer, AutoModelForCausalLM, set_seed
+from transformers import set_seed
 from nusacrowd.utils.constants import Tasks
 from pythainlp import word_tokenize
 import datasets, evaluate
 from anyascii import anyascii
-from retry import retry
 
 
 DEBUG=True
@@ -83,7 +83,7 @@ def generation_metrics_fn(list_hyp, list_label):
     return metrics
 
 
-def to_prompt(input, prompt, prompt_lang, task_name, task_type, tokenizer, with_label=False,  use_template=False):
+def to_prompt(input, prompt, prompt_lang, task_name, task_type, tokenizer, with_label=False, use_template=False):
     if '[INPUT]' in prompt:
         prompt = prompt.replace('[INPUT]', input['text_1'])
 
@@ -181,17 +181,7 @@ if __name__ == '__main__':
     # Load Model & Tokenizer
     # Tokenizer initialization
     use_prompt_template = "sea-lion" in MODEL and "instruct" in MODEL
-    tokenizer = AutoTokenizer.from_pretrained(MODEL, truncation_side='left', trust_remote_code=True)
-    tokenizer.padding_side = "left"
-
-    if tokenizer.pad_token is None:
-        tokenizer.pad_token = tokenizer.bos_token if tokenizer.bos_token is not None else tokenizer.eos_token
-    
-    if "Qwen" in MODEL:
-        tokenizer.add_special_tokens({'pad_token': '<|endoftext|>'})
-
-    model = AutoModelForCausalLM.from_pretrained(MODEL, device_map="auto", trust_remote_code=True, torch_dtype=torch.bfloat16, attn_implementation="flash_attention_2")
-    model.eval()
+    model, tokenizer = load_model_and_tokenizer(MODEL, compile=True)
 
     metrics = {'dataset': []}
     for i, dset_subset in enumerate(nlg_datasets.keys()):
