@@ -4,83 +4,15 @@ from os.path import exists
 
 import pandas as pd
 from tqdm import tqdm
+from metrics_utils import generation_metrics_fn
 from model_utils import load_model_and_tokenizer
 from prompt_utils import get_prompt, get_lang_name
 from data_utils import load_nlg_datasets
 
 import torch
-
 from transformers import set_seed
 from nusacrowd.utils.constants import Tasks
-from pythainlp import word_tokenize
-import datasets, evaluate
 from anyascii import anyascii
-
-
-DEBUG=True
-
-""" Generation metrics """
-bleu = datasets.load_metric('bleu', trust_remote_code=True)
-rouge = datasets.load_metric('rouge', trust_remote_code=True)
-sacrebleu = datasets.load_metric('sacrebleu', trust_remote_code=True)
-chrf = datasets.load_metric('chrf', trust_remote_code=True)
-meteor = evaluate.load('meteor')
-squad_v2_metric = datasets.load_metric('squad_v2', trust_remote_code=True)
-
-def generation_metrics_fn(list_hyp, list_label):
-    # hyp and label are both list of string
-    # Check if the lists are empty
-    if not list_hyp or not list_label or len(list_hyp) != len(list_label):
-        raise ValueError("Input lists must be non-empty and of the same length")
-    
-    list_hyp = [hyp if hyp is not None else "" for hyp in list_hyp]
-    list_label = [label if label is not None else "" for label in list_label]
-    
-    # Tokenize the hypotheses and labels for BLEU computation
-    list_hyp_bleu = list(map(lambda x: word_tokenize(x), list_hyp))
-    list_label_bleu = list(map(lambda x: [word_tokenize(x)], list_label))    
-    list_label_sacrebleu = list(map(lambda x: [x], list_label))
-
-    metrics = {}
-
-    # Compute BLEU score
-    try:
-        metrics["BLEU"] = bleu._compute(list_hyp_bleu, list_label_bleu)['bleu'] * 100
-    except ZeroDivisionError:
-        metrics["BLEU"] = 0.0
-
-    # Compute SacreBLEU score
-    try:
-        metrics["SacreBLEU"] = sacrebleu._compute(list_hyp, list_label_sacrebleu)['score']
-    except ZeroDivisionError:
-        metrics["SacreBLEU"] = 0.0
-
-    # Compute chrF++ score
-    try:
-        metrics["chrF++"] = chrf._compute(list_hyp, list_label_sacrebleu)['score']
-    except ZeroDivisionError:
-        metrics["chrF++"] = 0.0
-
-    # Compute METEOR score
-    try:
-        metrics["meteor"] = meteor.compute(predictions=list_hyp, references=list_label)['meteor'] * 100
-    except ZeroDivisionError:
-        metrics["meteor"] = 0.0
-
-    # Compute ROUGE scores
-    try:
-        rouge_score = rouge._compute(list_hyp, list_label)
-        metrics["ROUGE1"] = rouge_score['rouge1'].mid.fmeasure * 100
-        metrics["ROUGE2"] = rouge_score['rouge2'].mid.fmeasure * 100
-        metrics["ROUGEL"] = rouge_score['rougeL'].mid.fmeasure * 100
-        metrics["ROUGELsum"] = rouge_score['rougeLsum'].mid.fmeasure * 100
-    except ZeroDivisionError:
-        metrics["ROUGE1"] = 0.0
-        metrics["ROUGE2"] = 0.0
-        metrics["ROUGEL"] = 0.0
-        metrics["ROUGELsum"] = 0.0
-
-    return metrics
 
 
 def to_prompt(input, prompt, prompt_lang, task_name, task_type, tokenizer, with_label=False, use_template=False):
@@ -122,37 +54,18 @@ def to_prompt(input, prompt, prompt_lang, task_name, task_type, tokenizer, with_
 
 
 def predict_generation(prompts, model_name, tokenizer, model):
-    if "Qwen" in model_name:
-        preds = []
-        for prompt in prompts:
-            pred, _ = model.chat(tokenizer, prompt, history=None)
-            preds.append(pred)
-        return preds
-    else:
-        inputs = tokenizer(prompts, return_tensors="pt", padding=True, truncation=True, max_length=1024).to('cuda')
-        input_size = inputs["input_ids"].shape[1]
+    inputs = tokenizer(prompts, return_tensors="pt", padding=True, truncation=True, max_length=1024).to(model.device)
+    input_size = inputs["input_ids"].shape[1]    
 
-        if "sea-lion" in model_name:
-            inputs.pop("token_type_ids", None)
-        
-        if model.config.is_encoder_decoder:
-            outputs = model.generate(**inputs, do_sample=True, min_length=1, max_length=100)
-            preds = tokenizer.batch_decode(outputs, skip_special_tokens=True) 
-            return preds
-        else:
-            outputs = model.generate(**inputs, do_sample=True, min_length=input_size+1, max_length=input_size+100)
-            if "llama" in model_name:
-                preds = [p.strip() for p in tokenizer.batch_decode(outputs[:,inputs["input_ids"].shape[1]:], skip_special_tokens=True)]
-            else:
-                preds = tokenizer.batch_decode(outputs[:,inputs["input_ids"].shape[1]:], skip_special_tokens=True)
-            return preds
+    outputs = model.generate(**inputs, do_sample=True, min_length=input_size+1, max_length=input_size+100)
+    preds = tokenizer.batch_decode(outputs[:,inputs["input_ids"].shape[1]:], skip_special_tokens=True)
+    return preds
 
 
 if __name__ == '__main__':
     if len(sys.argv) != 5:
         raise ValueError('main_nlg_prompt.py <prompt_lang> <model_path_or_name> <n_shot> <n_batch>')
 
-    # TODO: reduce hardcoded vars
     out_dir = './outputs_nlg'
     metric_dir = './metrics_nlg'
     os.makedirs(out_dir, exist_ok=True)

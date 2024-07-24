@@ -107,18 +107,11 @@ def predict_classification(model, tokenizer, prompts, labels):
 
 if __name__ == '__main__':
     if len(sys.argv) < 4:
-        raise ValueError('main_nlu_prompt.py <prompt_lang> <model_path_or_name> <batch_size> <save_every (OPTIONAL)>')
+        raise ValueError('main_nlu_prompt.py <prompt_lang> <model_path_or_name> <batch_size>')
 
     prompt_lang = sys.argv[1]
     MODEL = sys.argv[2]
     BATCH_SIZE = int(sys.argv[3])
-    ADAPTER = ''
-    # if 'bactrian' in MODEL:
-    #     MODEL, ADAPTER = MODEL.split('---')
-
-    SAVE_EVERY = 10
-    if len(sys.argv) == 5:
-        SAVE_EVERY = int(sys.argv[4])
 
     out_dir = './outputs_nlu'
     metric_dir = './metrics_nlu'
@@ -241,12 +234,6 @@ if __name__ == '__main__':
                                 golds.append(label)
                             prompts, labels = [], []
                             count += 1
-                            
-                        if count == SAVE_EVERY:
-                            # partial saving
-                            inference_df = pd.DataFrame(list(zip(inputs, preds, golds)), columns =["Input", 'Pred', 'Gold'])
-                            inference_df.to_csv(f'{out_dir}/{dset_subset}_{prompt_lang}_{prompt_id}_{MODEL.split("/")[-1]}.csv', index=False)
-                            count = 0
                             
                     if len(prompts) > 0:
                         out = predict_classification(model, tokenizer, prompts, label_names)
