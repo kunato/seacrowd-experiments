@@ -14,6 +14,7 @@ from tqdm.contrib.concurrent import thread_map
 from tqdm import tqdm
 from model_utils import load_model_and_tokenizer
 from collections import defaultdict
+from transformers import set_seed
 
 two_score_pattern = re.compile("\[\[(\d+\.?\d*),\s?(\d+\.?\d*)\]\]")
 two_score_pattern_backup = re.compile("\[(\d+\.?\d*),\s?(\d+\.?\d*)\]")
@@ -259,6 +260,7 @@ class LLMJudgeEvalHandler:
 
 if __name__ == '__main__':
     import argparse
+    set_seed(42)
     parser = argparse.ArgumentParser(prog='LLM as judge evalulator')
     parser.add_argument('model_name')
     parser.add_argument('--data')

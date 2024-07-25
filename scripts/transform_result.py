@@ -19,7 +19,7 @@ def upload_file(result_path: str, task_type: str, model_name: str):
 
 def process_nlu_result(model_name: str, outpath: str):
     task_type = 'NLU'
-    df = pd.read_csv(f'metrics_nlu/nlu_results_eng_{model_name}.csv')
+    df = pd.read_csv(f'metrics_nlu/nlu_results_tha_{model_name}.csv')
     results = defaultdict(list)
     dataset_key = 'dataset'
     metrics_key = ['accuracy']
@@ -46,7 +46,7 @@ def process_nlu_result(model_name: str, outpath: str):
 
 def process_nlg_result(model_name: str, outpath: str):
     task_type = 'NLG'
-    df = pd.read_csv(f'metrics_nlg/nlg_results_eng_0_{model_name}.csv')
+    df = pd.read_csv(f'metrics_nlg/nlg_results_tha_0_{model_name}.csv')
     results = defaultdict(dict)
     dataset_key = 'dataset'
     dataset_to_metrics = {
@@ -56,7 +56,8 @@ def process_nlg_result(model_name: str, outpath: str):
         'ntrex_128_eng-US_tha_seacrowd_t2t': ['BLEU', 'SacreBLEU', 'chrF++'],
         'flores200_tha_Thai_eng_Latn_seacrowd_t2t': ['BLEU', 'SacreBLEU', 'chrF++'],
         'ntrex_128_tha_eng-US_seacrowd_t2t': ['BLEU', 'SacreBLEU', 'chrF++'],
-        'mkqa_tha_seacrowd_qa': []
+        'mkqa_tha_seacrowd_qa': [],
+        'iapp_squad_seacrowd_qa': []
     }
 
     for i, row in df.iterrows():
@@ -100,6 +101,11 @@ def process_llm_result(model_name: str, outpath: str):
 
 
 if __name__ == '__main__':
-    process_nlu_result('Meta-Llama-3-8B-Instruct', 'results')
-    process_nlg_result('Meta-Llama-3-8B-Instruct', 'results')
-    process_llm_result('Meta-Llama-3-8B-Instruct', 'results')
+    import argparse
+    parser = argparse.ArgumentParser(prog='LLM as judge evalulator')
+    parser.add_argument('model_name')
+    parser.add_argument('--result_path', default='results')
+    args = parser.parse_args()
+    process_nlu_result(args.model_name, args.result_path)
+    process_nlg_result(args.model_name, args.result_path)
+    process_llm_result(args.model_name, args.result_path)

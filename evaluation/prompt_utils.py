@@ -1035,6 +1035,7 @@ LANG_MAP = {
     },
     'tha': {
         'tha': 'Thai',
+        'eng': 'English',
         'eng-US': 'English',
     },
     'ind': {
