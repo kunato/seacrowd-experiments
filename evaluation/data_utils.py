@@ -277,7 +277,7 @@ def load_nlu_datasets():
     for config_name in NLU_TASK_LIST:
         if config_name == 'thaiexam_qa':
             ds = datasets.load_dataset('kunato/thai-exam-seacrowd')
-            cfg_name_to_dset_map[config_name] = (ds, Tasks.QUESTION_ANSWERING)
+            cfg_name_to_dset_map[config_name] = (ds, Tasks.COMMONSENSE_REASONING)
         else:
             schema = config_name.split('_')[-1]
             con = nc_conhelp.for_config_name(config_name)
