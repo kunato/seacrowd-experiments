@@ -20,7 +20,7 @@ NLU_TASK_LIST = {
     # "indolem_sentiment_seacrowd_text",
     # "id_sentiment_analysis_seacrowd_text",
     # "karonese_sentiment_seacrowd_text",
-    # "wisesight_thai_sentiment_seacrowd_text",
+    "wisesight_thai_sentiment_seacrowd_text",
     # "wongnai_reviews_seacrowd_text",
     # "vlsp2016_sa_seacrowd_text", -- local dataset, will rectify later
     # "typhoon_yolanda_tweets_seacrowd_text",
@@ -157,6 +157,7 @@ NLU_TASK_LIST = {
     # "myxnli_seacrowd_pairs",
     "xnli.tha_seacrowd_pairs",
     # "xnli.vie_seacrowd_pairs",
+    'thaiexam_qa'
 }
 
 
@@ -263,7 +264,7 @@ NLG_TASK_LIST = [
     # "qasina_seacrowd_qa",
     # "mkqa_khm_seacrowd_qa", 
     # "mkqa_zsm_seacrowd_qa",
-    "mkqa_tha_seacrowd_qa",
+    # "mkqa_tha_seacrowd_qa",
     # "mkqa_vie_seacrowd_qa"
 ]
 
@@ -274,11 +275,13 @@ def load_nlu_datasets():
     cfg_name_to_dset_map = {}
 
     for config_name in NLU_TASK_LIST:
-        print(config_name)
-        schema = config_name.split('_')[-1]
-        con = nc_conhelp.for_config_name(config_name)
-        cfg_name_to_dset_map[config_name] = (con.load_dataset(), list(con.tasks)[0])
-
+        if config_name == 'thaiexam_qa':
+            ds = datasets.load_dataset('kunato/thai-exam-seacrowd')
+            cfg_name_to_dset_map[config_name] = (ds, Tasks.QUESTION_ANSWERING)
+        else:
+            schema = config_name.split('_')[-1]
+            con = nc_conhelp.for_config_name(config_name)
+            cfg_name_to_dset_map[config_name] = (con.load_dataset(), list(con.tasks)[0])
     return cfg_name_to_dset_map
 
 

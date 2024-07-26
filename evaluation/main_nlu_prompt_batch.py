@@ -52,7 +52,7 @@ def to_prompt(input, prompt, labels, prompt_lang, schema):
                 prompt = prompt.replace('[OPTIONS]', ' '.join(new_labels))
     elif schema == "qa":
         if "[CONTEXT]" in prompt:
-            context = "" if input['context'] is None else input['context']
+            context = "" if 'context' not in input.keys() or input['context'] is not None else input['context']
             prompt = prompt.replace('[CONTEXT]', context)
         prompt = prompt.replace('[QUESTION]', input['question'])
 

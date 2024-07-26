@@ -17,31 +17,43 @@ def upload_file(result_path: str, task_type: str, model_name: str):
         commit_message=f"Add {result_path} to result queue",
     )
 
+def _get_dataset_type(dataset_name: str):
+    if dataset_name in ['m3exam_tha_seacrowd_qa', "thaiexam_qa"]:
+        return 'MC'
+    else:
+        return 'NLU'
+
+
 def process_nlu_result(model_name: str, outpath: str):
-    task_type = 'NLU'
     df = pd.read_csv(f'metrics_nlu/nlu_results_tha_{model_name}.csv')
-    results = defaultdict(list)
+    results = {'NLU': defaultdict(list), 'MC': defaultdict(list)}
     dataset_key = 'dataset'
     metrics_key = ['accuracy']
     for i, row in df.iterrows():
         for k in metrics_key:
-            results[row[dataset_key]].append({k: row[k]}) 
-    results_final = {}
-    for k in results.keys():
-        d = results[k][0]
-        results_final[k] = d
-    data = {
-        'config': {
-            "model_name": model_name,
-        },
-        "results": results_final
-    }
-    result_path = f'{outpath}/{task_type}/{model_name}/results.json'
-    print(os.path.dirname(result_path))
-    os.makedirs(os.path.dirname(result_path), exist_ok=True)
-    with open(result_path, 'w') as w:
-        json.dump(data, w, ensure_ascii=False)
-    upload_file(result_path, task_type, model_name)
+            dataset_name = row[dataset_key]
+            dataset_type = _get_dataset_type(dataset_name)
+            results[dataset_type][dataset_name].append({k: row[k]})
+    
+    for task_type in results.keys():
+        results_final = {}
+        for k in results[task_type].keys():
+            d = results[task_type][k][0]
+            results_final[k] = d
+            
+        data = {
+            'config': {
+                "model_name": model_name,
+            },
+            "results": results_final
+        }
+
+        result_path = f'{outpath}/{task_type}/{model_name}/results.json'
+        print(os.path.dirname(result_path))
+        os.makedirs(os.path.dirname(result_path), exist_ok=True)
+        with open(result_path, 'w') as w:
+            json.dump(data, w, ensure_ascii=False)
+        upload_file(result_path, task_type, model_name)
 
 
 def process_nlg_result(model_name: str, outpath: str):
@@ -50,20 +62,17 @@ def process_nlg_result(model_name: str, outpath: str):
     results = defaultdict(dict)
     dataset_key = 'dataset'
     dataset_to_metrics = {
-        'lr_sum_tha_seacrowd_t2t': ['ROUGE1', 'ROUGE2', 'ROUGEL'],
         'xl_sum_tha_seacrowd_t2t': ['ROUGE1', 'ROUGE2', 'ROUGEL'],
         'flores200_eng_Latn_tha_Thai_seacrowd_t2t': ['BLEU', 'SacreBLEU', 'chrF++'],
-        'ntrex_128_eng-US_tha_seacrowd_t2t': ['BLEU', 'SacreBLEU', 'chrF++'],
         'flores200_tha_Thai_eng_Latn_seacrowd_t2t': ['BLEU', 'SacreBLEU', 'chrF++'],
-        'ntrex_128_tha_eng-US_seacrowd_t2t': ['BLEU', 'SacreBLEU', 'chrF++'],
-        'mkqa_tha_seacrowd_qa': [],
-        'iapp_squad_seacrowd_qa': []
+        'iapp_squad_seacrowd_qa': ['ROUGE1', 'ROUGE2', 'ROUGEL']
     }
 
     for i, row in df.iterrows():
         metrics_key = dataset_to_metrics[row[dataset_key]]
         for k in metrics_key:
             results[row[dataset_key]][k] = row[k]
+    
     data = {
         'config': {
             "model_name": model_name,

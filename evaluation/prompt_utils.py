@@ -831,6 +831,9 @@ LABEL_LANG_MAP ={
         'eng': {0: 'a', 1: 'b', 2: 'c', 3: 'd'},
         'ind': {0: 'a', 1: 'b', 2: 'c', 3: 'd'},
     },
+    "thaiexam_qa": {
+        'eng': {0: 'a', 1: 'b', 2: 'c', 3: 'd', 4: 'e'},
+    },
     "m3exam_vie_seacrowd_qa": {
         'eng': {0: 'a', 1: 'b', 2: 'c', 3: 'd'},
         'ind': {0: 'a', 1: 'b', 2: 'c', 3: 'd'},
