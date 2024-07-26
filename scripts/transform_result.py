@@ -115,6 +115,9 @@ if __name__ == '__main__':
     parser.add_argument('model_name')
     parser.add_argument('--result_path', default='results')
     args = parser.parse_args()
-    process_nlu_result(args.model_name, args.result_path)
-    process_nlg_result(args.model_name, args.result_path)
-    process_llm_result(args.model_name, args.result_path)
+    model_name = args.model_name
+    if '/' in model_name:
+        model_name = model_name.split('/')[-1]
+    process_nlu_result(model_name, args.result_path)
+    process_nlg_result(model_name, args.result_path)
+    process_llm_result(model_name, args.result_path)
