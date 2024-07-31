@@ -14,7 +14,7 @@ seacrowd
 bitsandbytes
 torchaudio
 opencv-python
-transformers
+transformers==4.43.3
 pillow
 jiwer
 evaluate

@@ -24,7 +24,7 @@ def _get_dataset_type(dataset_name: str):
         return 'NLU'
 
 
-def process_nlu_result(model_name: str, outpath: str):
+def process_nlu_result(model_name: str, outpath: str, full_model_name=None):
     df = pd.read_csv(f'metrics_nlu/nlu_results_tha_{model_name}.csv')
     results = {'NLU': defaultdict(list), 'MC': defaultdict(list)}
     dataset_key = 'dataset'
@@ -43,7 +43,7 @@ def process_nlu_result(model_name: str, outpath: str):
             
         data = {
             'config': {
-                "model_name": model_name,
+                "model_name": full_model_name if full_model_name is not None else model_name,
             },
             "results": results_final
         }
@@ -56,7 +56,7 @@ def process_nlu_result(model_name: str, outpath: str):
         upload_file(result_path, task_type, model_name)
 
 
-def process_nlg_result(model_name: str, outpath: str):
+def process_nlg_result(model_name: str, outpath: str, full_model_name=None):
     task_type = 'NLG'
     df = pd.read_csv(f'metrics_nlg/nlg_results_tha_0_{model_name}.csv')
     results = defaultdict(dict)
@@ -75,7 +75,7 @@ def process_nlg_result(model_name: str, outpath: str):
     
     data = {
         'config': {
-            "model_name": model_name,
+            "model_name": full_model_name if full_model_name is not None else model_name,
         },
         "results": results
     }
@@ -86,7 +86,7 @@ def process_nlg_result(model_name: str, outpath: str):
     
     upload_file(result_path, task_type, model_name)
 
-def process_llm_result(model_name: str, outpath: str):
+def process_llm_result(model_name: str, outpath: str, full_model_name=None):
     task_type = 'LLM'
     results = defaultdict(dict)
     with open(f'metrics_llm/{model_name}.json') as f:
@@ -96,7 +96,7 @@ def process_llm_result(model_name: str, outpath: str):
                 results[f'{name}'][m] = d[m][name]
     data = {
         'config': {
-            "model_name": model_name,
+            "model_name": full_model_name if full_model_name is not None else model_name,
         },
         "results": results
     }
@@ -115,9 +115,10 @@ if __name__ == '__main__':
     parser.add_argument('model_name')
     parser.add_argument('--result_path', default='results')
     args = parser.parse_args()
-    model_name = args.model_name
-    if '/' in model_name:
-        model_name = model_name.split('/')[-1]
-    process_nlu_result(model_name, args.result_path)
-    process_nlg_result(model_name, args.result_path)
-    process_llm_result(model_name, args.result_path)
+    full_model_name = args.model_name
+    assert '/' in full_model_name
+    if '/' in full_model_name:
+        model_name = full_model_name.split('/')[-1]
+    process_nlu_result(model_name, args.result_path, full_model_name=full_model_name)
+    process_nlg_result(model_name, args.result_path, full_model_name=full_model_name)
+    process_llm_result(model_name, args.result_path, full_model_name=full_model_name)
