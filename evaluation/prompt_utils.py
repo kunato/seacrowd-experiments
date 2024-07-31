@@ -43,7 +43,7 @@ TASK_TO_PROMPT = {
 
         # Tasks.MACHINE_TRANSLATION
         'MT': [
-            'Translate the following text from [SOURCE] to [TARGET]. Give your translation directly.\nText: [INPUT]\nTranslation:',
+            'Translate the following text from [SOURCE] to [TARGET]. Give your translation directly without any extra information.\nText: [INPUT]\nTranslation:',
         ],
         
         # Tasks.SUMMARIZATION
@@ -58,7 +58,7 @@ TASK_TO_PROMPT = {
 
         # Tasks.INSTRUCTION_TUNING
         'IT': [
-            'Task: [INPUT]\n What is your output upon completing the insturction or question given?',
+            'Task: [INPUT]\n What is your output upon completing the instruction or question given?',
         ],
 
         # Task.QA_EXTRACTIVE_ABSTRACTIVE

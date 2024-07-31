@@ -127,6 +127,8 @@ class LLMJudgeEvalHandler:
                 batchs.append(prompts[i + j])
             
             inputs = self.tokenizer(batchs, return_tensors="pt", padding=True).to(self.model.device)
+            if 'sea-lion' in model_name and 'token_type_ids' in inputs.keys():
+                del inputs["token_type_ids"]
             outputs = self.model.generate(**inputs, do_sample=True, **payload[i].generation_kwargs, eos_token_id=self._get_terminator(), max_new_tokens=512)
             preds = self.tokenizer.batch_decode(outputs[:, inputs["input_ids"].shape[1]:], skip_special_tokens=True)
             results.extend(preds)
