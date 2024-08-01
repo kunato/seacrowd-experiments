@@ -25,7 +25,11 @@ def _get_dataset_type(dataset_name: str):
 
 
 def process_nlu_result(model_name: str, outpath: str, full_model_name=None):
-    df = pd.read_csv(f'metrics_nlu/nlu_results_tha_{model_name}.csv')
+    file_path = f'metrics_nlu/nlu_results_tha_{model_name}.csv'
+    if not os.path.exists(file_path):
+        print(f'skip upload NLU/MC result {file_path} not found')
+        return
+    df = pd.read_csv(file_path)
     results = {'NLU': defaultdict(list), 'MC': defaultdict(list)}
     dataset_key = 'dataset'
     metrics_key = ['accuracy']
@@ -57,8 +61,12 @@ def process_nlu_result(model_name: str, outpath: str, full_model_name=None):
 
 
 def process_nlg_result(model_name: str, outpath: str, full_model_name=None):
+    file_path = f'metrics_nlg/nlg_results_tha_0_{model_name}.csv'
     task_type = 'NLG'
-    df = pd.read_csv(f'metrics_nlg/nlg_results_tha_0_{model_name}.csv')
+    if not os.path.exists(file_path):
+        print(f'skip upload {task_type} result {file_path} not found')
+        return
+    df = pd.read_csv(file_path)
     results = defaultdict(dict)
     dataset_key = 'dataset'
     dataset_to_metrics = {
@@ -88,8 +96,12 @@ def process_nlg_result(model_name: str, outpath: str, full_model_name=None):
 
 def process_llm_result(model_name: str, outpath: str, full_model_name=None):
     task_type = 'LLM'
+    file_path = f'metrics_llm/{model_name}.json'
+    if not os.path.exists(file_path):
+        print(f'skip upload {task_type} result {file_path} not found')
+        return
     results = defaultdict(dict)
-    with open(f'metrics_llm/{model_name}.json') as f:
+    with open(file_path) as f:
         d = json.load(f)
         for m in d.keys():
             for name in d[m].keys():
