@@ -121,8 +121,6 @@ if __name__ == '__main__':
         else:
             data = nlg_dset['train']
 
-        #data = data.shard(10000, 0) # get shard the size of the dataset for efficiency
-
         if 'train' in nlg_dset.keys():
             few_shot_data = nlg_dset['train']
         elif 'devtest' in nlg_dset.keys():
@@ -134,7 +132,7 @@ if __name__ == '__main__':
             inputs = []
             preds = []
             preds_latin = []
-            golds = []  
+            golds = []
             print(f"PROMPT ID: {prompt_id}")
             print(f"SAMPLE PROMPT: {to_prompt(data[0], prompt_template, prompt_lang, dset_subset, task_type.value)}")
 
