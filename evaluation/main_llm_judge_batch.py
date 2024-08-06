@@ -8,6 +8,7 @@ import os
 import dataclasses
 from dataclasses import dataclass, field
 import torch
+from datasets import load_dataset
 from typing import Any, Dict, List, Optional, Tuple
 from openai import OpenAI, OpenAIError
 from tqdm.contrib.concurrent import thread_map
@@ -80,8 +81,19 @@ class LLMJudgeEvalHandler:
 
     def load_dataset(self) -> List[LLMJudgePayload]:
         res = []
-        with open(self.data_path) as f:
-            data = json.load(f)
+        if os.path.exists(self.data_path):
+            with open(self.data_path) as f:
+                data = json.load(f)
+        else:
+            data = []
+            ds = load_dataset(self.data_path, split='train')
+            column_names = ds.column_names
+            for i in range(len(ds[column_names[0]])):
+                row = {}
+                for key in column_names:
+                    row[key] = ds[key][i]
+                data.append(row)
+
         for row in data:
             turns = row["turns"]
             category = row["category"]

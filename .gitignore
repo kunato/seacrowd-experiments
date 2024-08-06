@@ -249,3 +249,4 @@ evaluation/batch_files_nlg
 # End of https://www.toptal.com/developers/gitignore/api/python,jupyternotebooks,windows,macos,linux
 LEADERBOARD_README.md
 judge_result.json
+build_and_push.sh
